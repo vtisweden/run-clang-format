@@ -125,6 +125,17 @@ def run_clang_format_diff_wrapper(args, file):
 
 
 def run_clang_format_diff(args, file):
+    sourceEncoding = detect_encoding(file)
+    # Re-encode non utf-8 or ascii files
+    if sourceEncoding != 'utf-8' and sourceEncoding != 'us-ascii':
+        temp_file = file + '.tmp'
+        targetEncoding = 'utf-8'
+        with io.open(file, 'r', encoding=sourceEncoding) as f, io.open(temp_file, 'w', encoding=targetEncoding) as e:
+            text = f.read() # for small files, for big use chunks
+            e.write(text)
+        os.remove(file) # remove old encoding file
+        os.rename(temp_file, file) # rename new encoding
+    
     try:
         with io.open(file, 'r', encoding='utf-8') as f:
             original = f.readlines()
@@ -246,6 +257,16 @@ def print_trouble(prog, message, use_colors):
     if use_colors:
         error_text = bold_red(error_text)
     print("{}: {} {}".format(prog, error_text, message), file=sys.stderr)
+
+
+def detect_encoding(file):
+    process = os.popen('file --mime-encoding ' + file)
+    preprocessed = process.read()
+    encoding = preprocessed.split(":")
+    encoding = encoding[-1].lstrip().rstrip()
+    if encoding == 'unknown-8bit':
+        encoding = 'cp1252'
+    return encoding
 
 
 def main():
